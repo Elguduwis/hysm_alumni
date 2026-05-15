@@ -24,9 +24,21 @@ class DuesService extends ChangeNotifier {
     final now = DateTime.now();
     try {
       final existing = await _supabase.from('monthly_dues').select().eq('user_id', user.id).eq('due_month', now.month).eq('due_year', now.year);
+      
       if (existing.isEmpty) {
+        // DYNAMIC FEE FETCH: Ask the database for the current official fee amount!
+        double defaultAmount = 2000.00;
+        try {
+          final settings = await _supabase.from('system_settings').select('value').eq('key', 'monthly_dues_amount').single();
+          defaultAmount = double.tryParse(settings['value'].toString()) ?? 2000.00;
+        } catch (_) {} // Fallback to 2000 if setting is missing
+
         await _supabase.from('monthly_dues').insert({
-          'user_id': user.id, 'amount_expected': 2000.00, 'due_month': now.month, 'due_year': now.year, 'status': 'Unpaid',
+          'user_id': user.id, 
+          'amount_expected': defaultAmount, 
+          'due_month': now.month, 
+          'due_year': now.year, 
+          'status': 'Unpaid',
         });
       }
     } catch (e) { debugPrint('Error generating dues: $e'); }
@@ -42,12 +54,9 @@ class DuesService extends ChangeNotifier {
     finally { _isLoading = false; notifyListeners(); }
   }
 
-  // This is called AFTER Paystack returns a success status
-  Future<void> confirmPaymentSuccess(String dueId, String paystackReference) async {
+  Future<void> confirmPaymentSuccess(String dueId) async {
     try {
-      // Mark invoice as paid
       await _supabase.from('monthly_dues').update({'status': 'Paid'}).eq('id', dueId);
-      // Optional: Save transaction record to the transactions table here
       await fetchDues();
     } catch (e) {
       debugPrint('Error confirming payment: $e');

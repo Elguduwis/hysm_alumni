@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_paystack_fork/flutter_paystack_fork.dart';
+import 'package:pay_with_paystack/pay_with_paystack.dart';
 import '../services/dues_service.dart';
 
 class DuesScreen extends StatefulWidget {
@@ -13,9 +13,6 @@ class DuesScreen extends StatefulWidget {
 }
 
 class _DuesScreenState extends State<DuesScreen> {
-  final plugin = PaystackPlugin();
-  bool _isPaystackInitialized = false;
-
   @override
   void initState() {
     super.initState();
@@ -28,7 +25,6 @@ class _DuesScreenState extends State<DuesScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || user.email == null) return;
 
-    // Show a loading dialog while we talk to the database
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -36,54 +32,46 @@ class _DuesScreenState extends State<DuesScreen> {
     );
 
     try {
-      // 1. DYNAMIC KEY FETCH: Grab the latest key from Supabase
+      // DYNAMIC KEY FETCH: Grab the Secret Key directly from Supabase!
       final response = await Supabase.instance.client
           .from('system_settings')
           .select('value')
-          .eq('key', 'paystack_public_key')
+          .eq('key', 'paystack_secret_key')
           .single();
           
-      final dynamicPublicKey = response['value'] as String;
+      final dynamicSecretKey = response['value'] as String;
 
-      // 2. INITIALIZE ONCE: Only initialize if we haven't already
-      if (!_isPaystackInitialized) {
-        await plugin.initialize(publicKey: dynamicPublicKey);
-        _isPaystackInitialized = true;
-      }
+      if (context.mounted) Navigator.pop(context); // Close loading dialog
 
-      // 3. PREPARE CHARGE
-      Charge charge = Charge()
-        ..amount = (amount * 100).toInt() // Convert to Kobo
-        ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
-        ..email = user.email!;
-
-      // Dismiss the loading dialog right before showing the Paystack UI
-      if (context.mounted) Navigator.pop(context);
-
-      // 4. TRIGGER CHECKOUT
-      CheckoutResponse checkoutResponse = await plugin.checkout(
-        context,
-        method: CheckoutMethod.card,
-        charge: charge,
-        logo: const Icon(Icons.school, size: 50, color: Color(0xFF4A148C)),
+      // Launch the safe WebView Checkout (Bypasses native Android crashes)
+      await PayWithPaystack().now(
+        context: context,
+        secretKey: dynamicSecretKey,
+        customerEmail: user.email!,
+        reference: 'HYSM_${DateTime.now().millisecondsSinceEpoch}',
+        currency: "NGN",
+        amount: (amount * 100).toInt(),
+        transactionCompleted: () async {
+          await context.read<DuesService>().confirmPaymentSuccess(dueId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green),
+            );
+          }
+        },
+        transactionNotCompleted: () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.orange),
+            );
+          }
+        },
+        callbackUrl: "https://wpkqiguvhnymqopzjfej.supabase.co", // Returns the webview safely
       );
 
-      // 5. HANDLE RESULT
-      if (checkoutResponse.status == true && context.mounted) {
-        await context.read<DuesService>().confirmPaymentSuccess(dueId, checkoutResponse.reference ?? "N/A");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green),
-        );
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.orange),
-        );
-      }
-
     } catch (e) {
-      // If ANYTHING fails (Database, Network, or Paystack), catch it here!
       if (context.mounted) {
-        Navigator.pop(context); // Dismiss loading dialog if it's still open
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
         );
