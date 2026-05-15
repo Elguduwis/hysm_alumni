@@ -13,7 +13,7 @@ dependencies:
   google_fonts: ^6.2.1
   intl: ^0.19.0
   url_launcher: ^6.2.5
-  paystack_flutter_sdk: 0.0.1-alpha.2
+  flutter_paystack: ^1.0.7
   flutter_spinkit: ^5.2.1
 
 dev_dependencies:

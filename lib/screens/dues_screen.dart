@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
+import 'package:flutter_paystack/flutter_paystack.dart';
 import '../services/dues_service.dart';
 
 class DuesScreen extends StatefulWidget {
@@ -13,12 +13,15 @@ class DuesScreen extends StatefulWidget {
 }
 
 class _DuesScreenState extends State<DuesScreen> {
-  // Your verified Test Key
+  final plugin = PaystackPlugin();
+  
+  // Your verified Paystack Test Key
   final String paystackPublicKey = 'pk_test_c06652bbd642f969303bfe3063a2804f2a3af830';
 
   @override
   void initState() {
     super.initState();
+    plugin.initialize(publicKey: paystackPublicKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DuesService>().initDues();
     });
@@ -28,26 +31,33 @@ class _DuesScreenState extends State<DuesScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || user.email == null) return;
 
+    Charge charge = Charge()
+      ..amount = (amount * 100).toInt() // Convert to Kobo
+      ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
+      ..email = user.email!;
+
     try {
-      final paystack = Paystack(paystackPublicKey);
-      
-      final response = await paystack.checkout(
+      CheckoutResponse response = await plugin.checkout(
         context,
-        amount: (amount * 100).toInt(), 
-        email: user.email!,
-        reference: 'HYSM_${DateTime.now().millisecondsSinceEpoch}',
+        method: CheckoutMethod.card, // Directs to card payment UI
+        charge: charge,
+        logo: const Icon(Icons.school, size: 50, color: Color(0xFF0D47A1)),
       );
 
-      if (response.status == 'success' && context.mounted) {
+      if (response.status == true && context.mounted) {
         await context.read<DuesService>().confirmPaymentSuccess(dueId, response.reference ?? "N/A");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green),
+        );
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
