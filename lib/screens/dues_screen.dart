@@ -21,7 +21,6 @@ class _DuesScreenState extends State<DuesScreen> {
   @override
   void initState() {
     super.initState();
-    plugin.initialize(publicKey: paystackPublicKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DuesService>().initDues();
     });
@@ -30,6 +29,9 @@ class _DuesScreenState extends State<DuesScreen> {
   Future<void> _handlePayment(BuildContext context, String dueId, double amount) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || user.email == null) return;
+
+    // BULLETPROOF FIX: Await initialization exactly before the checkout is triggered
+    await plugin.initialize(publicKey: paystackPublicKey);
 
     Charge charge = Charge()
       ..amount = (amount * 100).toInt() // Convert to Kobo
@@ -41,7 +43,7 @@ class _DuesScreenState extends State<DuesScreen> {
         context,
         method: CheckoutMethod.card, // Directs to card payment UI
         charge: charge,
-        logo: const Icon(Icons.school, size: 50, color: Color(0xFF0D47A1)),
+        logo: const Icon(Icons.school, size: 50, color: Color(0xFF4A148C)), // Deep Purple
       );
 
       if (response.status == true && context.mounted) {
@@ -73,7 +75,11 @@ class _DuesScreenState extends State<DuesScreen> {
     final formatCurrency = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dues & Finance')),
+      appBar: AppBar(
+        title: const Text('Dues & Finance'),
+        backgroundColor: const Color(0xFF4A148C), // Deep Purple
+        foregroundColor: Colors.white,
+      ),
       body: Consumer<DuesService>(
         builder: (context, duesService, child) {
           if (duesService.isLoading && duesService.duesList.isEmpty) {
@@ -87,9 +93,9 @@ class _DuesScreenState extends State<DuesScreen> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
+                  gradient: const LinearGradient(colors: [Color(0xFF4A148C), Color(0xFF7B1FA2)]),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+                  boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
                 ),
                 child: Column(
                   children: [
@@ -125,7 +131,7 @@ class _DuesScreenState extends State<DuesScreen> {
                         trailing: isPaid
                             ? const Text('PAID', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16))
                             : ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white),
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4A148C), foregroundColor: Colors.white),
                                 onPressed: () => _handlePayment(context, due.id, due.amountExpected),
                                 child: const Text('Pay'),
                               ),
