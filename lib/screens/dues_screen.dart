@@ -14,9 +14,7 @@ class DuesScreen extends StatefulWidget {
 
 class _DuesScreenState extends State<DuesScreen> {
   final plugin = PaystackPlugin();
-  
-  // Your verified Paystack Test Key
-  final String paystackPublicKey = 'pk_test_c06652bbd642f969303bfe3063a2804f2a3af830';
+  bool _isPaystackInitialized = false;
 
   @override
   void initState() {
@@ -30,24 +28,49 @@ class _DuesScreenState extends State<DuesScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || user.email == null) return;
 
-    // BULLETPROOF FIX: Await initialization exactly before the checkout is triggered
-    await plugin.initialize(publicKey: paystackPublicKey);
-
-    Charge charge = Charge()
-      ..amount = (amount * 100).toInt() // Convert to Kobo
-      ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
-      ..email = user.email!;
+    // Show a loading dialog while we talk to the database
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
 
     try {
-      CheckoutResponse response = await plugin.checkout(
+      // 1. DYNAMIC KEY FETCH: Grab the latest key from Supabase
+      final response = await Supabase.instance.client
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'paystack_public_key')
+          .single();
+          
+      final dynamicPublicKey = response['value'] as String;
+
+      // 2. INITIALIZE ONCE: Only initialize if we haven't already
+      if (!_isPaystackInitialized) {
+        await plugin.initialize(publicKey: dynamicPublicKey);
+        _isPaystackInitialized = true;
+      }
+
+      // 3. PREPARE CHARGE
+      Charge charge = Charge()
+        ..amount = (amount * 100).toInt() // Convert to Kobo
+        ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
+        ..email = user.email!;
+
+      // Dismiss the loading dialog right before showing the Paystack UI
+      if (context.mounted) Navigator.pop(context);
+
+      // 4. TRIGGER CHECKOUT
+      CheckoutResponse checkoutResponse = await plugin.checkout(
         context,
-        method: CheckoutMethod.card, // Directs to card payment UI
+        method: CheckoutMethod.card,
         charge: charge,
-        logo: const Icon(Icons.school, size: 50, color: Color(0xFF4A148C)), // Deep Purple
+        logo: const Icon(Icons.school, size: 50, color: Color(0xFF4A148C)),
       );
 
-      if (response.status == true && context.mounted) {
-        await context.read<DuesService>().confirmPaymentSuccess(dueId, response.reference ?? "N/A");
+      // 5. HANDLE RESULT
+      if (checkoutResponse.status == true && context.mounted) {
+        await context.read<DuesService>().confirmPaymentSuccess(dueId, checkoutResponse.reference ?? "N/A");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green),
         );
@@ -56,10 +79,13 @@ class _DuesScreenState extends State<DuesScreen> {
           const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.orange),
         );
       }
+
     } catch (e) {
+      // If ANYTHING fails (Database, Network, or Paystack), catch it here!
       if (context.mounted) {
+        Navigator.pop(context); // Dismiss loading dialog if it's still open
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
         );
       }
     }
@@ -77,7 +103,7 @@ class _DuesScreenState extends State<DuesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dues & Finance'),
-        backgroundColor: const Color(0xFF4A148C), // Deep Purple
+        backgroundColor: const Color(0xFF4A148C),
         foregroundColor: Colors.white,
       ),
       body: Consumer<DuesService>(
