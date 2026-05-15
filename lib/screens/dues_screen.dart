@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_paystack/flutter_paystack.dart';
+import 'package:pay_with_paystack/pay_with_paystack.dart';
 import '../services/dues_service.dart';
 
 class DuesScreen extends StatefulWidget {
@@ -13,49 +13,43 @@ class DuesScreen extends StatefulWidget {
 }
 
 class _DuesScreenState extends State<DuesScreen> {
-  final plugin = PaystackPlugin();
-
   // REPLACE THIS WITH YOUR PAYSTACK PUBLIC KEY
-  final String paystackPublicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
-
-  @override
-  void initState() {
-    super.initState();
-    plugin.initialize(publicKey: paystackPublicKey);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DuesService>().initDues();
-    });
-  }
-
-  Future<void> _processPayment(BuildContext context, String dueId, double amount) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-
-    final charge = Charge()
-      ..amount = (amount * 100).toInt() // Paystack calculates in kobo/cents
-      ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
-      ..email = user.email;
-
-    final response = await plugin.checkout(
-      context,
-      method: CheckoutMethod.card, // Only allow card payments
-      charge: charge,
-      fullscreen: true,
-      logo: const Icon(Icons.school, size: 50, color: Color(0xFF0D47A1)),
-    );
-
-    if (response.status == true && context.mounted) {
-      // Payment Successful! Update Database
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green));
-      await context.read<DuesService>().confirmPaymentSuccess(dueId, response.reference!);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.red));
-    }
-  }
+  final String paystackPublicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
   String _getMonthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
+  }
+
+  Future<void> _handlePayment(BuildContext context, String dueId, double amount) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || user.email == null) return;
+
+    await PayWithPaystack().now(
+      context: context,
+      secretKey: "YOUR_PAYSTACK_SECRET_KEY_IF_USING_BACKEND_ELSE_IGNORE", 
+      customerEmail: user.email!,
+      reference: 'HYSM_${DateTime.now().millisecondsSinceEpoch}',
+      currency: "NGN",
+      amount: (amount * 100).toInt(),
+      transactionCompleted: () async {
+        await context.read<DuesService>().confirmPaymentSuccess(dueId, "COMPLETED");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green),
+          );
+        }
+      },
+      transactionNotCompleted: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment Not Completed'), backgroundColor: Colors.orange),
+          );
+        }
+      },
+      callbackUrl: "https://wpkqiguvhnymqopzjfej.supabase.co", // Using your project URL
+      publicKey: paystackPublicKey,
+    );
   }
 
   @override
@@ -92,7 +86,6 @@ class _DuesScreenState extends State<DuesScreen> {
                   ],
                 ),
               ),
-              
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -120,9 +113,8 @@ class _DuesScreenState extends State<DuesScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0D47A1), 
                                   foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
                                 ),
-                                onPressed: () => _processPayment(context, due.id, due.amountExpected),
+                                onPressed: () => _handlePayment(context, due.id, due.amountExpected),
                                 child: const Text('Pay'),
                               ),
                       ),
