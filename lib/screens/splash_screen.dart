@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'auth_screen.dart';
-import 'home_screen.dart';
+import '../main.dart'; // Import to access AuthWrapper
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,14 +17,13 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Artificial delay so the user can see your branding
     await Future.delayed(const Duration(seconds: 3));
     
     if (!mounted) return;
     
-    final session = Supabase.instance.client.auth.currentSession;
+    // Pass control to the StreamBuilder so it handles login navigation!
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => session == null ? const AuthScreen() : const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const AuthWrapper()),
     );
   }
 

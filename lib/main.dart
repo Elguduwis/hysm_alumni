@@ -8,6 +8,8 @@ import 'services/dues_service.dart';
 import 'services/announcement_service.dart';
 import 'services/meeting_service.dart';
 import 'screens/splash_screen.dart';
+import 'screens/auth_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +46,7 @@ class HYSMApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0D47A1),
           primary: const Color(0xFF0D47A1),
-          secondary: const Color(0xFFFFC107), // Gold accent
+          secondary: const Color(0xFFFFC107),
         ),
         textTheme: GoogleFonts.poppinsTextTheme(),
         appBarTheme: const AppBarTheme(
@@ -55,6 +57,22 @@ class HYSMApp extends StatelessWidget {
         ),
       ),
       home: const SplashScreen(),
+    );
+  }
+}
+
+// RESTORED: The Live Auth Stream Wrapper
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final session = snapshot.data?.session;
+        return session == null ? const AuthScreen() : const HomeScreen();
+      },
     );
   }
 }
