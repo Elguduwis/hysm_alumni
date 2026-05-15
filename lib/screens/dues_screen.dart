@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_paystack/flutter_paystack.dart';
+// The fork smartly uses the original import path so code doesn't break
+import 'package:flutter_paystack/flutter_paystack.dart'; 
 import '../services/dues_service.dart';
 
 class DuesScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class DuesScreen extends StatefulWidget {
 class _DuesScreenState extends State<DuesScreen> {
   final plugin = PaystackPlugin();
   
-  // Your verified Paystack Test Key
+  // Your provided Paystack Test Key
   final String paystackPublicKey = 'pk_test_c06652bbd642f969303bfe3063a2804f2a3af830';
 
   @override
