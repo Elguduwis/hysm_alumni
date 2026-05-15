@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/supabase_service.dart';
 import 'directory_screen.dart';
+import 'dues_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -31,7 +32,15 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const DirectoryScreen()),
             ),
           ),
-          _buildCard(context, icon: Icons.monetization_on, label: 'Monthly Dues', onTap: () {}),
+          _buildCard(
+            context, 
+            icon: Icons.monetization_on, 
+            label: 'Monthly Dues', 
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DuesScreen()),
+            ),
+          ),
           _buildCard(context, icon: Icons.announcement, label: 'Announcements', onTap: () {}),
           _buildCard(context, icon: Icons.groups, label: 'Meeting Room', onTap: () {}),
         ],
