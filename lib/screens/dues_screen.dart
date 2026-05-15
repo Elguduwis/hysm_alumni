@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_paystack/flutter_paystack.dart';
 import '../services/dues_service.dart';
 
 class DuesScreen extends StatefulWidget {
@@ -11,12 +13,44 @@ class DuesScreen extends StatefulWidget {
 }
 
 class _DuesScreenState extends State<DuesScreen> {
+  final plugin = PaystackPlugin();
+
+  // REPLACE THIS WITH YOUR PAYSTACK PUBLIC KEY
+  final String paystackPublicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'; 
+
   @override
   void initState() {
     super.initState();
+    plugin.initialize(publicKey: paystackPublicKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DuesService>().initDues();
     });
+  }
+
+  Future<void> _processPayment(BuildContext context, String dueId, double amount) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final charge = Charge()
+      ..amount = (amount * 100).toInt() // Paystack calculates in kobo/cents
+      ..reference = 'HYSM_${DateTime.now().millisecondsSinceEpoch}'
+      ..email = user.email;
+
+    final response = await plugin.checkout(
+      context,
+      method: CheckoutMethod.card, // Only allow card payments
+      charge: charge,
+      fullscreen: true,
+      logo: const Icon(Icons.school, size: 50, color: Color(0xFF0D47A1)),
+    );
+
+    if (response.status == true && context.mounted) {
+      // Payment Successful! Update Database
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Successful!'), backgroundColor: Colors.green));
+      await context.read<DuesService>().confirmPaymentSuccess(dueId, response.reference!);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.red));
+    }
   }
 
   String _getMonthName(int month) {
@@ -29,7 +63,7 @@ class _DuesScreenState extends State<DuesScreen> {
     final formatCurrency = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Monthly Dues')),
+      appBar: AppBar(title: const Text('Dues & Finance')),
       body: Consumer<DuesService>(
         builder: (context, duesService, child) {
           if (duesService.isLoading && duesService.duesList.isEmpty) {
@@ -38,14 +72,14 @@ class _DuesScreenState extends State<DuesScreen> {
 
           return Column(
             children: [
-              // Total Arrears Card
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D47A1),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1976D2)]),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
                 ),
                 child: Column(
                   children: [
@@ -53,38 +87,43 @@ class _DuesScreenState extends State<DuesScreen> {
                     const SizedBox(height: 8),
                     Text(
                       formatCurrency.format(duesService.totalOutstanding),
-                      style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ),
               
-              // Dues List
               Expanded(
                 child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: duesService.duesList.length,
                   itemBuilder: (context, index) {
                     final due = duesService.duesList[index];
                     final isPaid = due.status == 'Paid';
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      elevation: 2,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isPaid ? Colors.green.shade100 : Colors.red.shade100,
-                          child: Icon(
-                            isPaid ? Icons.check : Icons.warning_amber_rounded,
-                            color: isPaid ? Colors.green : Colors.red,
-                          ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: isPaid ? Colors.green.shade50 : Colors.red.shade50, shape: BoxShape.circle),
+                          child: Icon(isPaid ? Icons.check_circle : Icons.warning_rounded, color: isPaid ? Colors.green : Colors.red),
                         ),
                         title: Text('${_getMonthName(due.dueMonth)} ${due.dueYear} Due', style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(formatCurrency.format(due.amountExpected)),
                         trailing: isPaid
-                            ? const Chip(label: Text('Paid', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green)
+                            ? const Text('PAID', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16))
                             : ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D47A1), foregroundColor: Colors.white),
-                                onPressed: () => duesService.mockPayDue(due.id),
-                                child: const Text('Pay Now'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D47A1), 
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                                ),
+                                onPressed: () => _processPayment(context, due.id, due.amountExpected),
+                                child: const Text('Pay'),
                               ),
                       ),
                     );

@@ -12,8 +12,9 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('HYSM Alumni Dashboard'),
+        title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -21,33 +22,40 @@ class HomeScreen extends StatelessWidget {
           )
         ],
       ),
-      body: GridView.count(
-        padding: const EdgeInsets.all(16),
-        crossAxisCount: 2,
+      body: Column(
         children: [
-          _buildCard(
-            context,
-            icon: Icons.person,
-            label: 'Bio Data',
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DirectoryScreen())),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0D47A1),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Welcome Back,', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                SizedBox(height: 8),
+                Text('HYSM Alumni Member', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
-          _buildCard(
-            context, 
-            icon: Icons.monetization_on, 
-            label: 'Monthly Dues', 
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DuesScreen())),
-          ),
-          _buildCard(
-            context, 
-            icon: Icons.announcement, 
-            label: 'Noticeboard', 
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
-          ),
-          _buildCard(
-            context, 
-            icon: Icons.groups, 
-            label: 'Meeting Room', 
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MeetingScreen())),
+          Expanded(
+            child: GridView.count(
+              padding: const EdgeInsets.all(20),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              crossAxisCount: 2,
+              children: [
+                _buildCard(context, icon: Icons.person_search, label: 'Bio Data', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DirectoryScreen()))),
+                _buildCard(context, icon: Icons.account_balance_wallet, label: 'Dues & Finance', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DuesScreen()))),
+                _buildCard(context, icon: Icons.campaign, label: 'Noticeboard', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()))),
+                _buildCard(context, icon: Icons.video_camera_front, label: 'Meeting Room', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MeetingScreen()))),
+              ],
+            ),
           ),
         ],
       ),
@@ -55,17 +63,29 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: const Color(0xFF0D47A1)),
-            const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+                child: Icon(icon, size: 36, color: const Color(0xFF0D47A1)),
+              ),
+              const SizedBox(height: 12),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
+          ),
         ),
       ),
     );
