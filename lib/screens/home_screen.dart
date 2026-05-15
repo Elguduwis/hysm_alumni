@@ -4,6 +4,7 @@ import '../services/supabase_service.dart';
 import 'directory_screen.dart';
 import 'dues_screen.dart';
 import 'announcements_screen.dart';
+import 'meeting_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -42,7 +43,12 @@ class HomeScreen extends StatelessWidget {
             label: 'Noticeboard', 
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
           ),
-          _buildCard(context, icon: Icons.groups, label: 'Meeting Room', onTap: () {}),
+          _buildCard(
+            context, 
+            icon: Icons.groups, 
+            label: 'Meeting Room', 
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MeetingScreen())),
+          ),
         ],
       ),
     );
