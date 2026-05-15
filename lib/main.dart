@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/supabase_service.dart';
 import 'services/directory_service.dart';
 import 'services/dues_service.dart';
+import 'services/announcement_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -22,6 +23,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => DirectoryService()),
         ChangeNotifierProvider(create: (_) => DuesService()),
+        ChangeNotifierProvider(create: (_) => AnnouncementService()),
       ],
       child: const HYSMApp(),
     ),
