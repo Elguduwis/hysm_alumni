@@ -43,15 +43,16 @@ class _DuesScreenState extends State<DuesScreen> {
 
       if (context.mounted) Navigator.pop(context); // Close loading dialog
 
-      // FIX IS HERE: Capital 'S' in PayWithPayStack
       await PayWithPayStack().now(
         context: context,
         secretKey: dynamicSecretKey,
         customerEmail: user.email!,
         reference: 'HYSM_${DateTime.now().millisecondsSinceEpoch}',
         currency: "NGN",
-        amount: (amount * 100).toInt(),
-        transactionCompleted: () async {
+        // FIX 1: Leave it as a double (amount is a double, so * 100 stays a double)
+        amount: amount * 100, 
+        // FIX 2: Accept the paymentData parameter
+        transactionCompleted: (paymentData) async {
           await context.read<DuesService>().confirmPaymentSuccess(dueId);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -59,14 +60,15 @@ class _DuesScreenState extends State<DuesScreen> {
             );
           }
         },
-        transactionNotCompleted: () {
+        // FIX 3: Accept the error string parameter
+        transactionNotCompleted: (error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Payment Cancelled or Failed'), backgroundColor: Colors.orange),
             );
           }
         },
-        callbackUrl: "https://wpkqiguvhnymqopzjfej.supabase.co", // Returns the webview safely
+        callbackUrl: "https://wpkqiguvhnymqopzjfej.supabase.co", 
       );
 
     } catch (e) {
