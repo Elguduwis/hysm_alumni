@@ -43,8 +43,8 @@ class _DuesScreenState extends State<DuesScreen> {
 
       if (context.mounted) Navigator.pop(context); // Close loading dialog
 
-      // Launch the safe WebView Checkout (Bypasses native Android crashes)
-      await PayWithPaystack().now(
+      // FIX IS HERE: Capital 'S' in PayWithPayStack
+      await PayWithPayStack().now(
         context: context,
         secretKey: dynamicSecretKey,
         customerEmail: user.email!,
