@@ -32,7 +32,6 @@ class _DuesScreenState extends State<DuesScreen> {
     );
 
     try {
-      // DYNAMIC KEY FETCH: Grab the Secret Key directly from Supabase!
       final response = await Supabase.instance.client
           .from('system_settings')
           .select('value')
@@ -41,7 +40,7 @@ class _DuesScreenState extends State<DuesScreen> {
           
       final dynamicSecretKey = response['value'] as String;
 
-      if (context.mounted) Navigator.pop(context); // Close loading dialog
+      if (context.mounted) Navigator.pop(context); 
 
       await PayWithPayStack().now(
         context: context,
@@ -49,9 +48,8 @@ class _DuesScreenState extends State<DuesScreen> {
         customerEmail: user.email!,
         reference: 'HYSM_${DateTime.now().millisecondsSinceEpoch}',
         currency: "NGN",
-        // FIX 1: Leave it as a double (amount is a double, so * 100 stays a double)
-        amount: amount * 100, 
-        // FIX 2: Accept the paymentData parameter
+        // THE FIX: Pass the raw amount. The package will handle the Kobo conversion safely!
+        amount: amount, 
         transactionCompleted: (paymentData) async {
           await context.read<DuesService>().confirmPaymentSuccess(dueId);
           if (mounted) {
@@ -60,7 +58,6 @@ class _DuesScreenState extends State<DuesScreen> {
             );
           }
         },
-        // FIX 3: Accept the error string parameter
         transactionNotCompleted: (error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +70,7 @@ class _DuesScreenState extends State<DuesScreen> {
 
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context); 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
         );
